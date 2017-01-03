@@ -45,6 +45,7 @@ setup(
         "requests>=2.10.0",
         "attrs>=16.0.0",
         "Delorean>=0.6.0",
+        "memoized_property>=1.0",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
