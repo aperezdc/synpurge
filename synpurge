@@ -6,6 +6,8 @@
 #
 # Distributed under terms of the GPLv3 license.
 
+__version__ = 1
+
 import attr
 import os
 import requests
