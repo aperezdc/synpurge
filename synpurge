@@ -1,0 +1,128 @@
+#! /usr/bin/env python3
+# -*- coding: utf-8 -*-
+# vim:fenc=utf-8
+#
+# Copyright © 2017 Adrian Perez <aperez@igalia.com>
+#
+# Distributed under terms of the GPLv3 license.
+
+import attr
+import os
+import requests
+import string
+
+from urllib.parse import quote as urlquote
+from datetime import datetime
+from delorean import Delorean
+
+
+def _create_requests_session():
+    s = requests.Session()
+    s.headers.update({
+        "Content-Type": "application/json",
+    })
+    return s
+
+
+class ApiError(Exception):
+    pass
+
+
+@attr.s
+class Purger(object):
+    url = attr.ib(validator=attr.validators.instance_of(str))
+
+    token = attr.ib(validator=attr.validators.instance_of(str),
+                    default=attr.Factory(lambda: os.environ["MXTOKEN"]))
+
+    _session = attr.ib(validator=attr.validators.instance_of(requests.Session),
+                       default=attr.Factory(_create_requests_session))
+
+    _API_BASE = "/_matrix/client/r0"
+
+    def request(self, method, url_pattern, params=None, raw_response=False,
+                raw_body=False, **kw):
+        if params is None:
+            params = {}
+        if "access_token" not in params:
+            params["access_token"] = self.token
+        values = {}
+        for key, value in kw.items():
+            values[key] = urlquote(value)
+        tmpl = string.Template(url_pattern)
+        url = self.url + self._API_BASE + tmpl.substitute(**values)
+        # TODO: Handle rate-limiting and retries.
+        req = self._session.prepare_request(requests.Request(method, url,
+                                                             params=params))
+        print("[1;35m *[0;0m[32m", req.url, end="[0m",)
+        r = self._session.send(req)
+        print(" →[33m", r, "[0m")
+
+        if raw_response:
+            return r
+        if r.status_code == 200:
+            if raw_body:
+                return r.text
+            else:
+                return r.json()
+        else:
+            raise ApiError(r.text)
+
+    def get_room_id(self, room_alias):
+        data = self.request("GET", "/directory/room/${alias}",
+                            alias=room_alias)
+        print(data)
+        return data["room_id"]
+
+    def get_room_messages(self, room_id, start=None, end=None, limit=None,
+                          forward=False):
+        params = { "dir": "f" if forward else "b" }
+        if start is not None: params["from"] = start
+        if end is not None: params["to"] = end
+        if limit is not None: params["limit"] = limit
+        return self.request("GET", "/rooms/${room_id}/messages",
+                            room_id=room_id, params=params)
+
+    def purge_room(self, room_id_or_alias, when):
+        if room_id_or_alias.startswith("!"):
+            room_id = room_id_or_alias
+        else:
+            print("Resolving room alias:", room_id_or_alias)
+            room_id = self.get_room_id(room_id_or_alias)
+        print("Purging events older than", when.humanize(), "for room", room_id)
+
+        event_id, event_time = self._find_event_id_before(room_id, when)
+        if event_id is None:
+            print("No history to trim")
+            return False
+
+        print("First event to purge:", event_id, "-", event_time.humanize())
+        r = self.request("POST",
+                         "/admin/purge_history/${room_id}/${event_id}",
+                         room_id=room_id,
+                         event_id=event_id)
+        return True
+
+    def _find_event_id_before(self, room_id, when):
+        data = self.get_room_messages(room_id)
+        start, end = data["start"], data["end"]
+        while start != end:
+            for event in data["chunk"]:
+                ts = datetime.fromtimestamp(event["origin_server_ts"] / 1000)
+                event_time = Delorean(ts, timezone="UTC")
+                # print("event:", event["event_id"], event_time.humanize())
+                if event_time < when:
+                    return event["event_id"], event_time
+            start, end = data["start"], data["end"]
+            data = self.get_room_messages(room_id, end, limit=100)
+        return None
+
+
+if __name__ == "__main__":
+    import sys
+    try:
+        r = sys.argv[1] if len(sys.argv) > 1 else "#freenode_#v8:igalia.com"
+        p = Purger(url="https://matrix.igalia.com")
+        p.purge_room(r, Delorean().last_month())
+    except ApiError as e:
+        raise SystemExit("Matrix API error: {!s}".format(e))
