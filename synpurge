@@ -42,6 +42,10 @@ class ApiError(Exception):
     pass
 
 
+class PurgeTimeout(Exception):
+    pass
+
+
 _time_unit_map = dict(second="seconds", seconds="seconds",
                       minute="minutes", minutes="minutes",
                       hour="hours", hours="hours",
@@ -76,6 +80,10 @@ class Config(object):
                    convert=_string_to_timedelta)
     token = attr.ib(validator=attr.validators.instance_of(str))
     rooms = attr.ib(validator=attr.validators.instance_of(set), hash=False)
+    purge_request_timeout = \
+            attr.ib(validator=attr.validators.instance_of(timedelta),
+                    convert=_string_to_timedelta,
+                    default=timedelta(seconds=180))
 
     @staticmethod
     def load(path):
@@ -139,7 +147,7 @@ class Purger(object):
     _API_BASE = "/_matrix/client/r0"
 
     def request(self, method, url_pattern, params=None, raw_response=False,
-                raw_body=False, **kw):
+                raw_body=False, timeout=None, **kw):
         if params is None:
             params = {}
         if "access_token" not in params:
@@ -152,7 +160,7 @@ class Purger(object):
         # TODO: Handle rate-limiting and retries.
         req = self._session.prepare_request(requests.Request(method, url,
                                                              params=params))
-        r = self._session.send(req)
+        r = self._session.send(req, timeout=timeout)
 
         if self._debug_requests:
             print("[1;35m *[0;0m[32m", req.url, "[0m →[33m", r, "[0m")
@@ -208,7 +216,7 @@ class Purger(object):
         return self.request("GET", "/rooms/${room_id}/messages",
                             room_id=room_id, params=params)
 
-    def purge_room(self, room_id_or_alias, when, params=None):
+    def purge_room(self, room_id_or_alias, when, timeout=None, params=None):
         if room_id_or_alias.startswith("!"):
             room_id = room_id_or_alias
         else:
@@ -225,11 +233,15 @@ class Purger(object):
         if self._pretend:
             print(" ** SKIPPING: SYNPURGE_PRETEND ENABLED **")
         else:
-            r = self.request("POST",
-                             "/admin/purge_history/${room_id}/${event_id}",
-                             room_id=room_id,
-                             event_id=event_id,
-                             params=params)
+            try:
+                r = self.request("POST",
+                                 "/admin/purge_history/${room_id}/${event_id}",
+                                 room_id=room_id,
+                                 event_id=event_id,
+                                 timeout=timeout,
+                                 params=params)
+            except requests.exceptions.Timeout:
+                raise PurgeTimeout(room_id_or_alias)
         return True
 
     def _find_event_id_before(self, room_id, when, params=None):
@@ -265,8 +277,20 @@ if __name__ == "__main__":
                     for room_alias in room_info.get("aliases", []):
                         if room_alias_matches(room_alias):
                             print(" -", room_alias, "→", room_id)
-                            p.purge_room(room_id, purge_upto, params=params)
+                            try:
+                                p.purge_room(room_id,
+                                             purge_upto,
+                                             timeout=c.purge_request_timeout.total_seconds(),
+                                             params=params)
+                            except PurgeTimeout as e:
+                                print("Timeout: {!r} (continuing)", e)
             else:
-                p.purge_room(room.name, purge_upto, params=params)
+                try:
+                    p.purge_room(room.name,
+                                 purge_upto,
+                                 timeout=c.purge_request_timeout.total_seconds(),
+                                 params=params)
+                except PurgeTimeout as e:
+                    print("Timeout: {!r} (continuing)", e)
     except ApiError as e:
         raise SystemExit("Matrix API error: {!s}".format(e))
