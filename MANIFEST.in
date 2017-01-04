@@ -1,2 +1,3 @@
 include config.example.conf
 include requirements.txt
+include CHANGELOG.md
