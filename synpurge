@@ -283,7 +283,7 @@ if __name__ == "__main__":
                                              timeout=c.purge_request_timeout.total_seconds(),
                                              params=params)
                             except PurgeTimeout as e:
-                                print("Timeout: {!r} (continuing)", e)
+                                print("Timeout: {!r} (continuing)".format(e))
             else:
                 try:
                     p.purge_room(room.name,
@@ -291,6 +291,6 @@ if __name__ == "__main__":
                                  timeout=c.purge_request_timeout.total_seconds(),
                                  params=params)
                 except PurgeTimeout as e:
-                    print("Timeout: {!r} (continuing)", e)
+                    print("Timeout: {!r} (continuing)".format(e))
     except ApiError as e:
         raise SystemExit("Matrix API error: {!s}".format(e))
