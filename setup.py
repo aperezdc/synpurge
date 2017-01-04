@@ -20,7 +20,7 @@ def distrib_file(*relpath):
 
 
 def get_version():
-    for line in distrib_file("synpurge"):
+    for line in distrib_file("synpurge", "__init__.py"):
         if line.startswith("__version__"):
             line = line.split()
             if line[0] == "__version__":
@@ -40,12 +40,16 @@ setup(
     author="Adrian Perez de Castro",
     author_email="aperez@igalia.com",
     url="https://github.com/aperezdc/synpurge",
-    scripts=["synpurge"],
+    entry_points={
+        "console_scripts": [
+            "synpurge = synpurge.cli:cmd",
+        ],
+    },
     install_requires=[
         "requests>=2.10.0",
         "attrs>=16.0.0",
         "Delorean>=0.6.0",
-        "memoized_property>=1.0",
+        "argh>=0.25",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
