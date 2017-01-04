@@ -6,7 +6,7 @@
 #
 # Distributed under terms of the GPLv3 license.
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from os import path
 
 def distrib_file(*relpath):
@@ -40,6 +40,7 @@ setup(
     author="Adrian Perez de Castro",
     author_email="aperez@igalia.com",
     url="https://github.com/aperezdc/synpurge",
+    packages=find_packages(),
     entry_points={
         "console_scripts": [
             "synpurge = synpurge.cli:cmd",
