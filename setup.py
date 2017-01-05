@@ -52,6 +52,9 @@ setup(
         "Delorean>=0.6.0",
         "argh>=0.25",
     ],
+    extras_require={
+        "pg": ["py-postgresql>=1.1.0"],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
