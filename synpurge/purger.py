@@ -3,7 +3,7 @@
 #
 # Copyright © 2017 Adrian Perez <aperez@igalia.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GPLv3 license.
 
 import attr
 import logging
