@@ -41,6 +41,11 @@ setup(
     author_email="aperez@igalia.com",
     url="https://github.com/aperezdc/synpurge",
     packages=find_packages(),
+    package_data={
+        "synpurge.pglib": [
+            "*.sql",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "synpurge = synpurge.cli:cmd",
