@@ -4,7 +4,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 
-## [v2] - 2015-01-05
+## [v3] - 2017-01-05
+### Added
+- Synpurge can now connect directly to PostgreSQL to map dates to events.
+  This makes operation substantially faster.
+
+### Fixed
+- Purging rooms for which a suitable reference event cannot be found are
+  skipped, instead of causing API calls to the purge history endpoing which
+  have bogus parameters.
+
+## [v2] - 2017-01-05
 ### Added
 - New command line syntax, with subcommands.
 - Better logging: the `purge` subcommand supports both verbose operation
