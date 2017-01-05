@@ -91,12 +91,18 @@ def purge(path: "configuration file",
 
     if pretend:
         for purge in purges:
+            if purge.event_id is None:
+                continue
             print("{} {} ({}, keep up to {})".format(purge.room_id, purge.event_id,
                                                      purge.config.name,
                                                      (now - purge.config.keep).humanize()))
         return
 
     for current, purge in zip(itertools.count(1), purges):
+        if purge.event_id is None:
+            log.info("Skipped (%i/%i) for room %s (%s), event %s",
+                     current, num_purges, purge.room_id, purge.config.name, purge.event_id)
+            continue
         log.info("Purging (%i/%i) for room %s (%s), event %s",
                  current, num_purges, purge.room_id, purge.config.name, purge.event_id)
         try:
