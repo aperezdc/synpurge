@@ -54,19 +54,29 @@ def purge(path: "configuration file",
     except Exception as e:
         raise SystemExit("Error loading configuration: {!s}".format(e))
 
-    from .minimx import API, APITimeout
-    from .purger import resolve_room_ids, DuplicateRoomId
-    from .purger import find_event_id
+    from . import purger
+    from . import minimx
 
-    api = API(homeserver=c.homeserver, token=c.token)
+    api = minimx.API(homeserver=c.homeserver, token=c.token)
     log.info("Resolving room aliases")
     try:
-        purges = resolve_room_ids(c, api)
-    except DuplicateRoomId as e:
+        purges = purger.resolve_room_ids(c, api)
+    except purger.DuplicateRoomId as e:
         raise SystemExit(("Two configuration items resolve to the same room"
                           " ({})\n---\n{}\n---\n{}").format(e.room_id,
                                                             e.old_config.as_config_snippet(),
                                                             e.new_config.as_config_snippet()))
+
+    if c.database:
+        from . import pg
+        pgdb = pg.open(c.database)
+        log.debug("Using PostgreSQL: %r", pgdb)
+        def find_event_id(room_id, upto, _token=None):
+            return pgdb.find_event_id(room_id, upto)
+    else:
+        def find_event_id(room_id, upto, token=None):
+            params = None if token is None else dict(access_token=token)
+            return purger.find_event_id(room_id, upto, api, params=params)
 
     import delorean
     import itertools
@@ -75,8 +85,9 @@ def purge(path: "configuration file",
     for current, purge in zip(itertools.count(1), purges):
         log.info("Finding reference event (%i/%i) for room %s (%s)",
                  current, num_purges, purge.room_id, purge.config.name)
-        purge.event_id = find_event_id(purge.room_id, now - purge.config.keep, api,
-                                       params=dict(access_token=purge.config.token))
+        purge.event_id = find_event_id(purge.room_id,
+                                       now - purge.config.keep,
+                                       purge.config.token)
 
     if pretend:
         for purge in purges:
@@ -91,7 +102,7 @@ def purge(path: "configuration file",
         try:
             api.purge_history(purge.room_id, purge.event_id,
                               params=dict(access_token=purge.config.token))
-        except APITimeout:
+        except minimx.APITimeout:
             if keep_going:
                 log.info("Timed out purging room %s (%s) - continuing",
                          purge.room_id, purge.config.name)
