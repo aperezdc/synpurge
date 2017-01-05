@@ -36,6 +36,39 @@ def check(path: "configuration file",
 
 
 @cmd
+def cleanup(path: "configuration file",
+            reindex: "re-create indexes" = False,
+            full: "clean the whole database" = False,
+            debug: "enable debugging output" = False,
+            verbose: "enable verbose operation" = False):
+    """Cleans up the database after purging."""
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    from . import config, pg
+    try:
+        c = config.load(path)
+    except Exception as e:
+        raise SystemExit("Error loading configuration: {!s}".format(e))
+
+    if not c.database:
+        raise SystemExit("No database configured")
+
+    pgdb = pg.open(c.database)
+    log.debug("Using PostgreSQL: %r", pgdb)
+    if full:
+        pgdb.cleanup_full()
+        if reindex:
+            pgdb.reindex_full()
+    else:
+        pgdb.cleanup()
+        if reindex:
+            pgdb.reindex()
+
+
+@cmd
 def purge(path: "configuration file",
           debug: "enable debugging output" = False,
           verbose: "enable verbose operation" = False,
