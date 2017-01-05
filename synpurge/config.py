@@ -49,6 +49,35 @@ def _timedelta_to_string(d):
         return "{} days".format(d.days)
 
 
+def _optional_int(s):
+    return None if s is None else int(s)
+
+
+@attr.s(frozen=True)
+class Database(object):
+    user = attr.ib(validator=vv.instance_of(str))
+    password = attr.ib(validator=vv.optional(vv.instance_of(str)),
+                       default=None)
+    database = attr.ib(validator=vv.optional(vv.instance_of(str)),
+                       default=None)
+    host = attr.ib(validator=vv.instance_of(str), default="localhost")
+    port = attr.ib(validator=vv.instance_of(int), default=5432, convert=int)
+
+    def as_config_snippet(self):
+        lines = [
+            "[database]",
+            "host = {}".format(self.host),
+            "user = {}".format(self.user),
+        ]
+        if self.password is not None:
+            lines.append("password = {}".format(self.password))
+        if self.database is not None:
+            lines.append("database = {}".format(self.database))
+        if self.port is not None:
+            lines.append("port = {}".format(self.port))
+        return "\n".join(lines)
+
+
 @attr.s(frozen=True)
 class Config(object):
     # TODO: Properly validate the URL.
@@ -62,6 +91,8 @@ class Config(object):
             attr.ib(validator=vv.optional(vv.instance_of(timedelta)),
                     convert=_optional_string_to_timedelta,
                     default=None)
+    database = attr.ib(validator=vv.optional(vv.instance_of(Database)),
+                       default=None)
 
     def as_config_snippet(self):
         lines = ["[synpurge]",
@@ -71,6 +102,8 @@ class Config(object):
         if self.purge_request_timeout is not None:
             value = _timedelta_to_string(self.purge_request_timeout)
             lines.append("purge_request_timeout = {}".format(value))
+        if self.database:
+            lines.append("\n{}".format(self.database.as_config_snippet()))
         room_snippets = (r.as_config_snippet() for r in self.rooms)
         return "\n".join(lines) + "\n\n" + "\n\n".join(sorted(room_snippets))
 
@@ -118,7 +151,8 @@ def load(path):
     ini = ConfigParser(default_section=None, interpolation=None)
     ini.read(path)
     rooms = set()
-    cfg = Config(rooms=rooms, **ini["synpurge"])
+    db = Database(**ini["database"]) if "database" in ini else None
+    cfg = Config(rooms=rooms, database=db, **ini["synpurge"])
     [rooms.add(Room(name=s, config=cfg, **ini[s]))
-        for s in ini.sections() if s != "synpurge"]
+        for s in ini.sections() if s not in ("synpurge", "database")]
     return cfg
