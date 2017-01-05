@@ -40,6 +40,9 @@ class API(object):
     _cached_public_rooms = attr.ib(default=None, init=False,
                                    hash=False, repr=False)
 
+    _all_rooms_warned = attr.ib(default=False, init=False,
+                                hash=False, repr=False)
+
     _API_BASE = "/_matrix/client/r0/"
 
     def url(self, *components):
@@ -70,17 +73,19 @@ class API(object):
     def public_rooms(self):
         if self._cached_public_rooms is None:
             log.info("Fetching public room directory")
-            rooms = ((r["room_id"], r) for r in self.get_public_rooms())
+            rooms = ((r["room_id"], r.get("aliases", ()))
+                     for r in self.get_public_rooms())
             self._cached_public_rooms = dict(rooms)
             log.info("Cached information for %d rooms",
                      len(self._cached_public_rooms))
         return self._cached_public_rooms
     
-    @public_rooms.deleter
-    def public_rooms(self):
-        # This effectivey invalidates the cache. The next access to the
-        # property will fetch the room directory from the homeserver again.
-        self._cached_public_rooms = None
+    @property
+    def all_rooms(self):
+        if not self._all_rooms_warned:
+            self._all_rooms_warned = True
+            log.warning("API.all_rooms cannot fetch unlisted rooms")
+        return self.public_rooms
 
     def get_public_rooms(self, timeout=None, params=None):
         next_batch = None

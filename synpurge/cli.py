@@ -57,15 +57,8 @@ def purge(path: "configuration file",
     from . import minimx
 
     api = minimx.API(homeserver=c.homeserver, token=c.token)
-    log.info("Resolving room aliases")
-    try:
-        purges = purger.resolve_room_ids(c, api)
-    except purger.DuplicateRoomId as e:
-        raise SystemExit(("Two configuration items resolve to the same room"
-                          " ({})\n---\n{}\n---\n{}").format(e.room_id,
-                                                            e.old_config.as_config_snippet(),
-                                                            e.new_config.as_config_snippet()))
 
+    pgdb = None
     if c.database:
         from . import pg
         pgdb = pg.open(c.database)
@@ -76,6 +69,15 @@ def purge(path: "configuration file",
         def find_event_id(room_id, upto, token=None):
             params = None if token is None else dict(access_token=token)
             return purger.find_event_id(room_id, upto, api, params=params)
+
+    log.info("Resolving room aliases")
+    try:
+        purges = purger.resolve_room_ids(c, pgdb or api)
+    except purger.DuplicateRoomId as e:
+        raise SystemExit(("Two configuration items resolve to the same room"
+                          " ({})\n---\n{}\n---\n{}").format(e.room_id,
+                                                            e.old_config.as_config_snippet(),
+                                                            e.new_config.as_config_snippet()))
 
     import delorean
     import itertools

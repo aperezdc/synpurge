@@ -36,7 +36,7 @@ class PurgeInfo(object):
 
 @attr.s
 class RoomIdsResolver(object):
-    _mxapi = attr.ib(validator=vv.instance_of(mx.API))
+    _api = attr.ib()
     _rooms = attr.ib(default=attr.Factory(dict),
                      init=False, hash=False)
 
@@ -44,6 +44,7 @@ class RoomIdsResolver(object):
         old_info = self._rooms.get(room_id, None)
         if not (replace or old_info is None):
             raise DuplicateRoomId(room_id, old_info.config, room_conf)
+        log.debug("Resolved %s -> %s", room_conf.name, room_id)
         self._rooms[room_id] = PurgeInfo(room_id, room_conf)
 
     def resolve(self, room_conf: config.Room):
@@ -51,16 +52,16 @@ class RoomIdsResolver(object):
         if room_conf.pattern:
             log.debug("Expanding room pattern: %s", room_conf.name)
             room_alias_matches = room_conf.build_alias_matcher()
-            for room_id, room_dict in self._mxapi.public_rooms.items():
-                for room_alias in room_dict.get("aliases", []):
+            for room_id, room_aliases in self._api.public_rooms.items():
+                for room_alias in room_aliases:
                     if room_alias_matches(room_alias):
                         self.__add(room_id, room_conf)
         elif room_conf.name.startswith("!"):
             self.__add(room_conf.name, room_conf)
         else:
             log.debug("Expanding room alias: %s", room_conf.name)
-            self.__add(self._mxapi.get_room_id(room_conf.name,
-                                               params=params),
+            self.__add(self._api.get_room_id(room_conf.name,
+                                             params=params),
                        room_conf)
 
     def get_purge_info(self):
