@@ -147,3 +147,15 @@ def purge(path: "configuration file",
             else:
                 raise SystemExit("Timed out purging room {} ({})".format(purge.room_id,
                                                                          purge.config.name))
+        if c.database:
+            assert pgdb is not None
+            if c.database.clean_interval and current % c.database.clean_interval == 0:
+                if c.database.clean_full:
+                    pgdb.cleanup_full()
+                else:
+                    pgdb.cleanup()
+            if c.database.reindex_interval and current % c.database.reindex_interval == 0:
+                if c.database.reindex_full:
+                    pgdb.reindex_full()
+                else:
+                    pgdb.reindex()

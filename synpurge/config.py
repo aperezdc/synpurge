@@ -62,10 +62,23 @@ class Database(object):
                        default=None)
     host = attr.ib(validator=vv.instance_of(str), default="localhost")
     port = attr.ib(validator=vv.instance_of(int), default=5432, convert=int)
+    clean_full = attr.ib(validator=vv.instance_of(bool),
+                         default=False, convert=bool)
+    clean_interval = attr.ib(validator=vv.instance_of(int),
+                             default=0, convert=int)
+    reindex_full = attr.ib(validator=vv.instance_of(bool),
+                           default=False, convert=bool)
+    reindex_interval = attr.ib(validator=vv.instance_of(int),
+                               default=0, convert=int)
+
 
     def as_config_snippet(self):
         lines = [
             "[database]",
+            "clean_interval = {}".format(self.clean_interval),
+            "clean_full = {}".format("true" if self.clean_full else "false"),
+            "reindex_interval = {}".format(self.reindex_interval),
+            "reindex_full = {}".format("true" if self.reindex_full else "false"),
             "host = {}".format(self.host),
             "user = {}".format(self.user),
         ]

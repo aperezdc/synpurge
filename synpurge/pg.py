@@ -97,5 +97,8 @@ class Database(object):
 def open(db_conf):
     from postgresql import driver
     from .pglib import category
-    return Database(driver.connect(category=category, **attr.asdict(db_conf)),
+    conn_params = attr.asdict(db_conf)
+    for key in ("clean_interval", "clean_full", "reindex_interval", "reindex_full"):
+        del conn_params[key]
+    return Database(driver.connect(category=category, **conn_params),
                     db_conf.database or db_conf.user)
