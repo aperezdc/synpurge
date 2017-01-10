@@ -9,6 +9,8 @@ import attr
 import itertools
 import logging
 
+from attr import validators as vv
+
 log = logging.getLogger(__name__)
 
 
@@ -29,6 +31,21 @@ _HUGE_TABLES = ("event_to_state_groups",
                 "state_groups_state")
 
 
+@attr.s(frozen=True, slots=True)
+class RoomInfo(object):
+    room_id   = attr.ib(validator=vv.instance_of(str))
+    creator   = attr.ib(validator=vv.instance_of(str))
+    is_public = attr.ib(validator=vv.instance_of(bool), convert=bool)
+    aliases   = attr.ib(validator=vv.instance_of(frozenset), convert=frozenset)
+    topic     = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
+    name      = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
+
+    def asdict(self):
+        d = attr.asdict(self)
+        d["aliases"] = list(d["aliases"])
+        return d
+
+
 class Database(object):
     def __init__(self, db, db_name):
         self._db = db
@@ -42,6 +59,10 @@ class Database(object):
 
     def get_room_id(self, room_alias, params=None):
         return self._db.synapse.resolve_room_alias(room_alias)
+
+    def get_room_info(self, room_id):
+        info = self._db.synapse.get_room_info(room_id)
+        return info if info is None else RoomInfo(**dict(info.items()))
 
     @property
     def public_rooms(self):

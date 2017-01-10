@@ -17,3 +17,22 @@ SELECT room_id, array_agg(room_alias) aliases
     FROM room_aliases
     WHERE room_id IN (SELECT room_id FROM rooms WHERE is_public = TRUE)
     GROUP BY room_id;
+
+[get_room_info::first]
+SELECT
+    r.room_id AS room_id,
+    r.is_public AS is_public,
+    r.creator AS creator,
+    array_agg(a.room_alias) AS aliases,
+    (SELECT content FROM events
+        WHERE room_id = r.room_id AND type = 'm.room.topic'
+        ORDER BY origin_server_ts DESC LIMIT 1)::json->>'topic' AS topic,
+    (SELECT content FROM events
+        WHERE room_id = r.room_id AND type = 'm.room.name'
+        ORDER BY origin_server_ts DESC LIMIT 1)::json->>'name' AS name
+FROM rooms r,
+     room_aliases a
+WHERE r.room_id = $1
+  AND r.room_id = a.room_id
+GROUP BY
+    r.room_id;

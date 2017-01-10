@@ -36,6 +36,52 @@ def check(path: "configuration file",
 
 
 @cmd
+def room_info(path: "configuration file",
+              room: "room ID or alias",
+              debug: "enable debugging output" = False,
+              json: "output information as JSON" = False):
+    """Obtains information about a room."""
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+
+    from . import config, pg
+    try:
+        c = config.load(path)
+    except Exception as e:
+        raise SystemExit("Error loading configuration: {!s}".format(e))
+
+    # TODO: Provide an alternate implemenation using the HTTP API.
+    if not c.database:
+        raise SystemExit("No database configured")
+    pgdb = pg.open(c.database)
+    log.debug("Using PostgreSQL: %r", pgdb)
+    if room.startswith("!"):
+        room_id = room
+    else:
+        room_id = pgdb.get_room_id(room)
+        if room_id is None:
+            raise SystemExit("No room has the alias {}".format(room))
+
+    room = pgdb.get_room_info(room_id)
+    if room is None:
+        raise SystemExit("No such room {}".format(room_id))
+
+    if json:
+        import json
+        return json.dumps(room.asdict(), indent="  ", sort_keys=True)
+
+    print("Room ID:", room.room_id)
+    print("Creator:", room.creator)
+    print("Public: ", "yes" if room.is_public else "no")
+    if room.name:
+        print("Name:   ", room.name)
+    if room.topic:
+        print("Topic:  ", room.topic)
+    if len(room.aliases) > 0:
+        print("Aliases:", ("\n" + " " * 9).join(sorted(room.aliases)))
+
+
+@cmd
 def cleanup(path: "configuration file",
             reindex: "re-create indexes" = False,
             full: "clean the whole database" = False,
