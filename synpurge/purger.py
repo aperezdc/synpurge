@@ -21,9 +21,22 @@ class DuplicateRoomId(Exception):
     room_id = attr.ib(validator=vv.instance_of(str))
     old_config = attr.ib(validator=vv.instance_of(config.Room))
     new_config = attr.ib(validator=vv.instance_of(config.Room))
+    old_matched_alias = attr.ib(validator=vv.optional(vv.instance_of(str)),
+                                default=None)
+    new_matched_alias = attr.ib(validator=vv.optional(vv.instance_of(str)),
+                                default=None)
 
     def __str__(self):
-        return "Room {} was already chosen".format(self.room_id)
+        lines = [self.room_id]
+        lines.append("")  # Extra empty line.
+        if self.old_matched_alias and self.old_config.pattern:
+            lines.append("# Matched alias: " + self.old_matched_alias)
+        lines.append(self.old_config.as_config_snippet())
+        lines.append("")  # Extra empty line.
+        if self.new_matched_alias and self.new_config.pattern:
+            lines.append("# Matched alias: " + self.new_matched_alias)
+        lines.append(self.old_config.as_config_snippet())
+        return "\n".join(lines)
 
 
 @attr.s(slots=True)
@@ -32,6 +45,18 @@ class PurgeInfo(object):
     config = attr.ib(validator=vv.instance_of(config.Room))
     event_id = attr.ib(validator=vv.optional(vv.instance_of(str)),
                        default=None, init=False)
+    matched_alias = attr.ib(validator=vv.optional(vv.instance_of(str)),
+                            default=None)
+
+    @property
+    def room_display_name(self):
+        if self.matched_alias is None:
+            if self.config.pattern:
+                return self.room_id
+            else:
+                return self.config.name
+        else:
+            return self.matched_alias
 
 
 @attr.s
@@ -40,12 +65,18 @@ class RoomIdsResolver(object):
     _rooms = attr.ib(default=attr.Factory(dict),
                      init=False, hash=False)
 
-    def __add(self, room_id, room_conf, replace=False):
+    def __add(self, room_id, room_conf, matched_alias=None, replace=False):
         old_info = self._rooms.get(room_id, None)
         if not (replace or old_info is None):
-            raise DuplicateRoomId(room_id, old_info.config, room_conf)
-        log.debug("Resolved %s -> %s", room_conf.name, room_id)
-        self._rooms[room_id] = PurgeInfo(room_id, room_conf)
+            raise DuplicateRoomId(room_id, old_info.config, room_conf,
+                                  old_info.matched_alias, matched_alias)
+        if matched_alias:
+            log.debug("Resolved %s -> %s (%s)",
+                      room_conf.name, room_id, matched_alias)
+        else:
+            log.debug("Resolved %s -> %s", room_conf.name, room_id)
+        self._rooms[room_id] = PurgeInfo(room_id, room_conf,
+                                         matched_alias=matched_alias)
 
     def resolve(self, room_conf: config.Room):
         params = { "access_token": room_conf.token }
@@ -55,14 +86,14 @@ class RoomIdsResolver(object):
             for room_id, room_aliases in self._api.public_rooms.items():
                 for room_alias in room_aliases:
                     if room_alias_matches(room_alias):
-                        self.__add(room_id, room_conf)
+                        self.__add(room_id, room_conf, room_alias)
         elif room_conf.name.startswith("!"):
             self.__add(room_conf.name, room_conf)
         else:
             log.debug("Expanding room alias: %s", room_conf.name)
             self.__add(self._api.get_room_id(room_conf.name,
                                              params=params),
-                       room_conf)
+                       room_conf, room_conf.name)
 
     def get_purge_info(self):
         return frozenset((info for room_id, info in self._rooms.items()))

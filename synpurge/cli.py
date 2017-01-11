@@ -153,10 +153,7 @@ def purge(path: "configuration file",
     try:
         purges = purger.resolve_room_ids(c, pgdb or api)
     except purger.DuplicateRoomId as e:
-        raise SystemExit(("Two configuration items resolve to the same room"
-                          " ({})\n---\n{}\n---\n{}").format(e.room_id,
-                                                            e.old_config.as_config_snippet(),
-                                                            e.new_config.as_config_snippet()))
+        raise SystemExit("Two configuration items resolve to the same room: {}".format(e))
 
     import delorean
     import itertools
@@ -164,7 +161,7 @@ def purge(path: "configuration file",
     num_purges= len(purges)
     for current, purge in zip(itertools.count(1), purges):
         log.info("Finding reference event (%i/%i) for room %s (%s)",
-                 current, num_purges, purge.room_id, purge.config.name)
+                 current, num_purges, purge.room_id, purge.room_display_name)
         purge.event_id = find_event_id(purge.room_id,
                                        now - purge.config.keep,
                                        purge.config.token)
@@ -176,23 +173,24 @@ def purge(path: "configuration file",
     if pretend:
         for purge in purges:
             print("{} {} ({}, keep up to {})".format(purge.room_id, purge.event_id,
-                                                     purge.config.name,
+                                                     purge.room_display_name,
                                                      (now - purge.config.keep).humanize()))
         return
 
     for current, purge in zip(itertools.count(1), purges):
         log.info("Purging (%i/%i) for room %s (%s), event %s",
-                 current, num_purges, purge.room_id, purge.config.name, purge.event_id)
+                 current, num_purges, purge.room_id,
+                 purge.room_display_name, purge.event_id)
         try:
             api.purge_history(purge.room_id, purge.event_id,
                               params=dict(access_token=purge.config.token))
         except minimx.APITimeout:
             if keep_going:
                 log.info("Timed out purging room %s (%s) - continuing",
-                         purge.room_id, purge.config.name)
+                         purge.room_id, purge.room_display_name)
             else:
                 raise SystemExit("Timed out purging room {} ({})".format(purge.room_id,
-                                                                         purge.config.name))
+                                                                         purge.room_display_name))
         if c.database:
             assert pgdb is not None
             if c.database.clean_interval and current % c.database.clean_interval == 0:
