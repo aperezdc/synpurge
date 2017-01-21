@@ -115,6 +115,33 @@ def cleanup(path: "configuration file",
 
 
 @cmd
+def reindex(path: "configuration file",
+            concurrent: "enable enable concurrent reindexing" = False,
+            debug: "enable debugging output" = False,
+            verbose: "enable verbose operation" = False):
+    """Reindex the database."""
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    from . import config, pg
+    try:
+        c = config.load(path)
+    except Exception as e:
+        raise SystemExit("Error loading configuration: {!s}".format(e))
+
+    if not c.database:
+        raise SystemExit("No database configured")
+
+    pgdb = pg.open(c.database)
+    log.debug("Using PostgreSQL: %r", pgdb)
+    if concurrent:
+        pgdb.reindex_concurrent()
+    else:
+        pgdb.reindex()
+
+@cmd
 def purge(path: "configuration file",
           debug: "enable debugging output" = False,
           verbose: "enable verbose operation" = False,

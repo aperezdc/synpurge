@@ -64,6 +64,9 @@ class Database(object):
         info = self._db.synapse.get_room_info(room_id)
         return info if info is None else RoomInfo(**dict(info.items()))
 
+    def find_table_indexes(self, table_name):
+        return self._db.synapse.table_indexes(table_name)
+
     @property
     def public_rooms(self):
         if self._cached_public_rooms is None:
@@ -105,11 +108,37 @@ class Database(object):
             self._db.execute("REINDEX TABLE {}".format(table_name))
         log.info("Finished database reindexing");
 
+    def reindex_concurrent(self):
+        log.info("Starting database concurrent reindexing")
+        for i, table_name in zip(itertools.count(1), _HUGE_TABLES):
+            log.debug("Re-indexing table '%s' concurrently (%i/%i)",
+                      table_name, i, len(_HUGE_TABLES))
+            self.reindex_table_concurrent(table_name)
+        log.info("Finished database concurrent reindexing");
+
     def reindex_full(self):
         log.info("Starting full database reindexing")
         # REINDEX does not work from an ILF library.
         self._db.execute("REINDEX DATABASE {}".format(self._name))
         log.info("Finished full database reindexing");
+
+    def reindex_table_concurrent(self, table_name):
+        for idx_name, idx_definition, idx_cluster in self.find_table_indexes(table_name):
+            log.debug("Re-indexing index '%s' in table '%s'" % (idx_name, table_name))
+            tmp_idx_name = "{}_tmp".format(idx_name)
+            tmp_idx_definition = idx_definition.replace(idx_name, tmp_idx_name)
+            try: 
+                self.__execute(tmp_idx_definition)
+                if idx_cluster: 
+                    self.__execute("ALTER TABLE {} CLUSTER ON {}".format(table_name,tmp_idx_name))
+                self.__execute("DROP INDEX {}".format(idx_name))
+                self.__execute("ALTER INDEX {} RENAME TO {}".format(tmp_idx_name,idx_name))
+            except:
+                self.__execute("DROP INDEX {}".format(tmp_idx_name))
+
+    def __execute(self, statement):
+        log.debug(statement)
+        self._db.execute(statement)
 
     def __repr__(self):
         return "Database(pg={!r})".format(self._db)
