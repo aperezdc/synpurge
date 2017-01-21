@@ -36,3 +36,17 @@ WHERE r.room_id = $1
   AND r.room_id = a.room_id
 GROUP BY
     r.room_id;
+
+[table_indexes]
+SELECT 
+    idx.relname AS index, 
+	pg_get_indexdef(idx.oid)||';' AS definition, 
+	ind.indisclustered AS clustered 
+FROM  pg_index ind
+    JOIN pg_class idx ON idx.oid = ind.indexrelid
+    JOIN pg_class tbl ON tbl.oid = ind.indrelid
+    LEFT JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+WHERE tbl.relname = $1
+    AND ind.indisvalid
+    AND ind.indisready
+
