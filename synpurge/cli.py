@@ -160,10 +160,6 @@ def purge(path: "configuration file",
     except Exception as e:
         raise SystemExit("Error loading configuration: {!s}".format(e))
 
-    if c.reindex_full and concurrent:
-        raise SystemExit("reindex_full (from configuration file) cannot "
-                         "be used simultanously with --concurrent")
-
     from . import purger
     from . import minimx
 
@@ -171,6 +167,9 @@ def purge(path: "configuration file",
 
     pgdb = None
     if c.database:
+        if c.database.reindex_full and concurrent:
+            raise SystemExit("reindex_full (from configuration file) cannot "
+                             "be used simultanously with --concurrent")
         from . import pg
         pgdb = pg.open(c.database)
         log.debug("Using PostgreSQL: %r", pgdb)
