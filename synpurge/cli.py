@@ -146,7 +146,8 @@ def purge(path: "configuration file",
           debug: "enable debugging output" = False,
           verbose: "enable verbose operation" = False,
           pretend: "only show what would be done" = False,
-          keep_going: "keep going on purge timeouts" = False):
+          keep_going: "keep going on purge timeouts" = False,
+          concurrent: "enable concurrent reindexing" = False):
     """Run a batch of room history purges."""
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -158,6 +159,10 @@ def purge(path: "configuration file",
         c = config.load(path)
     except Exception as e:
         raise SystemExit("Error loading configuration: {!s}".format(e))
+
+    if c.reindex_full and concurrent:
+        raise SystemExit("reindex_full (from configuration file) cannot "
+                         "be used simultanously with --concurrent")
 
     from . import purger
     from . import minimx
@@ -228,5 +233,7 @@ def purge(path: "configuration file",
             if c.database.reindex_interval and current % c.database.reindex_interval == 0:
                 if c.database.reindex_full:
                     pgdb.reindex_full()
+                elif concurrent:
+                    pgdb.reindex_concurrent()
                 else:
                     pgdb.reindex()
