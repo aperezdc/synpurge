@@ -116,7 +116,7 @@ def cleanup(path: "configuration file",
 
 @cmd
 def reindex(path: "configuration file",
-            concurrent: "enable enable concurrent reindexing" = False,
+            concurrent: "enable concurrent reindexing" = False,
             debug: "enable debugging output" = False,
             verbose: "enable verbose operation" = False):
     """Reindex the database."""
