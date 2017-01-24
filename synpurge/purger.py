@@ -83,7 +83,7 @@ class RoomIdsResolver(object):
         if room_conf.pattern:
             log.debug("Expanding room pattern: %s", room_conf.name)
             room_alias_matches = room_conf.build_alias_matcher()
-            for room_id, room_aliases in self._api.public_rooms.items():
+            for room_id, room_aliases in self._api.all_rooms.items():
                 for room_alias in room_aliases:
                     if room_alias_matches(room_alias):
                         self.__add(room_id, room_conf, room_alias)
