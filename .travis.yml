@@ -1,0 +1,14 @@
+sudo: false
+language: python
+python:
+  - 3.5
+install:
+  - pip install -e '.[dev]'
+script: |
+  # TODO(aperez): Check whether we need any of the additional bits from e.g.
+  # https://github.com/scikit-learn/scikit-learn/blob/53058619b571d8c9e517e40d36d825f07ceb5970/build_tools/travis/flake8_diff.sh
+  if [[ ${TRAVIS_PULL_REQUEST} = 'false' ]] ; then
+    flake8
+  else
+    flake8-diff
+  fi
