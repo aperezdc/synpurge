@@ -59,6 +59,19 @@ setup(
     ],
     extras_require={
         "pg": ["py-postgresql>=1.1.0"],
+        "dev": [
+            # Please keep in alphabetical order.
+            "flake8-author",
+            "flake8-builtins",
+            "flake8-comprehensions",
+            "flake8-debugger",
+            "flake8-deprecated",
+            "flake8-diff",
+            "flake8-dodgy",
+            "flake8-double-quotes",
+            "flake8-pep3101",
+            "flake8-tuple",
+        ],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
