@@ -1,6 +1,10 @@
 Synpurge
 ========
 
+.. image:: https://img.shields.io/travis/aperezdc/synpurge.svg?style=flat
+   :target: https://travis-ci.org/aperezdc/synpurge
+   :alt: CI Status
+
 Utility to remove history of Matrix rooms using the `purge_history API`__
 of Synapse__.
 
