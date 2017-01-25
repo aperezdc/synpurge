@@ -35,26 +35,45 @@ def check(path: "configuration file",
         return c.as_config_snippet()
 
 
+def _configure(config_path,
+               open_database=False,
+               require_database=True,
+               debug=False,
+               verbose=False):
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    from . import config, pg
+    try:
+        c = config.load(config_path)
+    except Exception as e:
+        raise SystemExit("Error loading configuration: {!s}".format(e))
+
+    db = None
+    if open_database:
+        if c.database:
+            db = pg.open(c.database)
+            log.debug("Using PostgreSQL: %r", db)
+        elif require_database:
+            raise SystemExit("No database configured")
+
+    return c, db
+
+
 @cmd
 def room_info(path: "configuration file",
               room: "room ID or alias",
               debug: "enable debugging output" = False,
               json: "output information as JSON" = False):
     """Obtains information about a room."""
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-
-    from . import config, pg
-    try:
-        c = config.load(path)
-    except Exception as e:
-        raise SystemExit("Error loading configuration: {!s}".format(e))
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=True,
+                         debug=debug)
 
     # TODO: Provide an alternate implemenation using the HTTP API.
-    if not c.database:
-        raise SystemExit("No database configured")
-    pgdb = pg.open(c.database)
-    log.debug("Using PostgreSQL: %r", pgdb)
     if room.startswith("!"):
         room_id = room
     else:
@@ -88,22 +107,11 @@ def cleanup(path: "configuration file",
             debug: "enable debugging output" = False,
             verbose: "enable verbose operation" = False):
     """Cleans up the database after purging."""
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-    elif verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    from . import config, pg
-    try:
-        c = config.load(path)
-    except Exception as e:
-        raise SystemExit("Error loading configuration: {!s}".format(e))
-
-    if not c.database:
-        raise SystemExit("No database configured")
-
-    pgdb = pg.open(c.database)
-    log.debug("Using PostgreSQL: %r", pgdb)
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=True,
+                         debug=debug,
+                         verbose=verbose)
     if full:
         pgdb.cleanup_full()
         if reindex:
@@ -120,22 +128,11 @@ def reindex(path: "configuration file",
             debug: "enable debugging output" = False,
             verbose: "enable verbose operation" = False):
     """Reindex the database."""
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-    elif verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    from . import config, pg
-    try:
-        c = config.load(path)
-    except Exception as e:
-        raise SystemExit("Error loading configuration: {!s}".format(e))
-
-    if not c.database:
-        raise SystemExit("No database configured")
-
-    pgdb = pg.open(c.database)
-    log.debug("Using PostgreSQL: %r", pgdb)
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=True,
+                         debug=debug,
+                         verbose=verbose)
     if concurrent:
         pgdb.reindex_concurrent()
     else:
@@ -150,30 +147,22 @@ def purge(path: "configuration file",
           keep_going: "keep going on purge timeouts" = False,
           concurrent: "enable concurrent reindexing" = False):
     """Run a batch of room history purges."""
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-    elif verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    from . import config
-    try:
-        c = config.load(path)
-    except Exception as e:
-        raise SystemExit("Error loading configuration: {!s}".format(e))
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=False,
+                         debug=debug,
+                         verbose=verbose)
 
     from . import purger
     from . import minimx
 
     api = minimx.API(homeserver=c.homeserver, token=c.token)
-
-    pgdb = None
     if c.database:
+        assert pgdb is not None
         if c.database.reindex_full and concurrent:
             raise SystemExit("reindex_full (from configuration file) cannot "
                              "be used simultanously with --concurrent")
-        from . import pg
-        pgdb = pg.open(c.database)
-        log.debug("Using PostgreSQL: %r", pgdb)
+
         def find_event_id(room_id, upto, _token=None):
             return pgdb.find_event_id(room_id, upto)
     else:
