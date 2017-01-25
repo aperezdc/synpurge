@@ -33,12 +33,12 @@ _HUGE_TABLES = ("event_to_state_groups",
 
 @attr.s(frozen=True, slots=True)
 class RoomInfo(object):
-    room_id   = attr.ib(validator=vv.instance_of(str))
-    creator   = attr.ib(validator=vv.instance_of(str))
+    room_id = attr.ib(validator=vv.instance_of(str))
+    creator = attr.ib(validator=vv.instance_of(str))
     is_public = attr.ib(validator=vv.instance_of(bool), convert=bool)
-    aliases   = attr.ib(validator=vv.instance_of(frozenset), convert=frozenset)
-    topic     = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
-    name      = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
+    aliases = attr.ib(validator=vv.instance_of(frozenset), convert=frozenset)
+    topic = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
+    name = attr.ib(validator=vv.optional(vv.instance_of(str)), default=None)
 
     def asdict(self):
         d = attr.asdict(self)
@@ -71,7 +71,7 @@ class Database(object):
     def public_rooms(self):
         if self._cached_public_rooms is None:
             self._cached_public_rooms = \
-                    dict(self._db.synapse.public_room_aliases)
+                dict(self._db.synapse.public_room_aliases)
             log.debug("Cached aliases for %i public rooms",
                       len(self._cached_public_rooms))
         return self._cached_public_rooms
@@ -80,7 +80,7 @@ class Database(object):
     def all_rooms(self):
         if self._cached_all_rooms is None:
             self._cached_all_rooms = \
-                    dict(self._db.synapse.room_aliases)
+                dict(self._db.synapse.room_aliases)
             log.debug("Cached aliases for %i rooms")
         return self._cached_all_rooms
 
@@ -106,7 +106,7 @@ class Database(object):
                       table_name, i, len(_HUGE_TABLES))
             # REINDEX does not work from an ILF library.
             self._db.execute("REINDEX TABLE {}".format(table_name))
-        log.info("Finished database reindexing");
+        log.info("Finished database reindexing")
 
     def reindex_concurrent(self):
         log.info("Starting database concurrent reindexing")
@@ -114,25 +114,25 @@ class Database(object):
             log.debug("Re-indexing table '%s' concurrently (%i/%i)",
                       table_name, i, len(_HUGE_TABLES))
             self.reindex_table_concurrent(table_name)
-        log.info("Finished database concurrent reindexing");
+        log.info("Finished database concurrent reindexing")
 
     def reindex_full(self):
         log.info("Starting full database reindexing")
         # REINDEX does not work from an ILF library.
         self._db.execute("REINDEX DATABASE {}".format(self._name))
-        log.info("Finished full database reindexing");
+        log.info("Finished full database reindexing")
 
     def reindex_table_concurrent(self, table_name):
         for idx_name, idx_definition, idx_cluster in self.find_table_indexes(table_name):
-            log.debug("Re-indexing index '%s' in table '%s'" % (idx_name, table_name))
+            log.debug("Re-indexing index '%s' in table '%s'", idx_name, table_name)
             tmp_idx_name = "{}_tmp".format(idx_name)
             tmp_idx_definition = idx_definition.replace(idx_name, tmp_idx_name)
-            try: 
+            try:
                 self.__execute(tmp_idx_definition)
-                if idx_cluster: 
-                    self.__execute("ALTER TABLE {} CLUSTER ON {}".format(table_name,tmp_idx_name))
+                if idx_cluster:
+                    self.__execute("ALTER TABLE {} CLUSTER ON {}".format(table_name, tmp_idx_name))
                 self.__execute("DROP INDEX {}".format(idx_name))
-                self.__execute("ALTER INDEX {} RENAME TO {}".format(tmp_idx_name,idx_name))
+                self.__execute("ALTER INDEX {} RENAME TO {}".format(tmp_idx_name, idx_name))
             except:
                 self.__execute("DROP INDEX {}".format(tmp_idx_name))
 

@@ -18,6 +18,7 @@ _time_unit_map = dict(second="seconds", seconds="seconds",
                       day="days", days="days",
                       week="weeks", weeks="weeks")
 
+
 def _string_to_timedelta(s):
     parts = s.strip().split()
     if len(parts) == 1:
@@ -35,7 +36,7 @@ def _string_to_timedelta(s):
     unit = _time_unit_map.get(unit, None)
     if unit is None:
         raise ValueError("Invalid unit: {!r}".format(parts[1].strip()))
-    return timedelta(**{ unit: amount })
+    return timedelta(**{unit: amount})
 
 
 def _optional_string_to_timedelta(s):
@@ -71,7 +72,6 @@ class Database(object):
     reindex_interval = attr.ib(validator=vv.instance_of(int),
                                default=0, convert=int)
 
-
     def as_config_snippet(self):
         lines = [
             "[database]",
@@ -101,16 +101,16 @@ class Config(object):
     rooms = attr.ib(validator=vv.instance_of(set),
                     hash=False)
     purge_request_timeout = \
-            attr.ib(validator=vv.optional(vv.instance_of(timedelta)),
-                    convert=_optional_string_to_timedelta,
-                    default=None)
+        attr.ib(validator=vv.optional(vv.instance_of(timedelta)),
+                convert=_optional_string_to_timedelta,
+                default=None)
     database = attr.ib(validator=vv.optional(vv.instance_of(Database)),
                        default=None)
 
     def as_config_snippet(self):
         lines = ["[synpurge]",
                  "homeserver = {}".format(self.homeserver),
-                 "keep = {}".format(_timedelta_to_string(self.keep)),  
+                 "keep = {}".format(_timedelta_to_string(self.keep)),
                  "token = {}".format(self.token)]
         if self.purge_request_timeout is not None:
             value = _timedelta_to_string(self.purge_request_timeout)
@@ -137,7 +137,7 @@ class Room(object):
                       convert=bool)
 
     def as_config_snippet(self):
-        lines = [ "[{}]".format(self.name) ]
+        lines = ["[{}]".format(self.name)]
         if self._keep is not None:
             lines.append("keep = {}".format(_timedelta_to_string(self._keep)))
         if self._token is not None:

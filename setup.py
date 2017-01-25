@@ -9,13 +9,15 @@
 from setuptools import setup, find_packages
 from os import path
 
+
 def distrib_file(*relpath):
     try:
-        return open(path.join(path.dirname(__file__), *relpath), "rU", \
-                encoding="utf-8")
+        return open(path.join(path.dirname(__file__), *relpath), "rU",
+                    encoding="utf-8")
     except IOError:
         class DummyFile(object):
-            read = lambda self: ""
+            def read(self):
+                return ""
         return DummyFile()
 
 

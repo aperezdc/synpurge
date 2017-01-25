@@ -11,7 +11,7 @@ import requests
 
 from attr import validators as vv
 from urllib.parse import quote as urlquote
-from requests import Timeout as APITimeout
+
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class API(object):
             log.info("Cached information for %d rooms",
                      len(self._cached_public_rooms))
         return self._cached_public_rooms
-    
+
     @property
     def all_rooms(self):
         if not self._all_rooms_warned:
@@ -120,9 +120,12 @@ class API(object):
         if params is None:
             params = {}
         params["dir"] = "f" if forward else "b"
-        if start is not None: params["from"] = start
-        if end is not None: params["to"] = end
-        if limit is not None: params["limit"] = limit
+        if start is not None:
+            params["from"] = start
+        if end is not None:
+            params["to"] = end
+        if limit is not None:
+            params["limit"] = limit
         return self.request("GET",
                             self.url("rooms", room_id, "messages"),
                             timeout=timeout,

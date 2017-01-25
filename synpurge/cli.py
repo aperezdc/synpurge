@@ -7,7 +7,7 @@
 
 import logging
 
-from argh import EntryPoint, arg
+from argh import EntryPoint
 
 log = logging.getLogger(__name__)
 cmd = EntryPoint("synpurg", dict(
@@ -141,6 +141,7 @@ def reindex(path: "configuration file",
     else:
         pgdb.reindex()
 
+
 @cmd
 def purge(path: "configuration file",
           debug: "enable debugging output" = False,
@@ -189,7 +190,7 @@ def purge(path: "configuration file",
     import delorean
     import itertools
     now = delorean.utcnow()
-    num_purges= len(purges)
+    num_purges = len(purges)
     for current, purge in zip(itertools.count(1), purges):
         log.info("Finding reference event (%i/%i) for room %s (%s)",
                  current, num_purges, purge.room_id, purge.room_display_name)

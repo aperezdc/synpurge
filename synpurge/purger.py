@@ -8,7 +8,7 @@
 import attr
 import logging
 
-from . import config, minimx as mx
+from . import config
 from attr import validators as vv
 from datetime import datetime
 from delorean import Delorean
@@ -79,7 +79,7 @@ class RoomIdsResolver(object):
                                          matched_alias=matched_alias)
 
     def resolve(self, room_conf: config.Room):
-        params = { "access_token": room_conf.token }
+        params = dict(access_token=room_conf.token)
         if room_conf.pattern:
             log.debug("Expanding room pattern: %s", room_conf.name)
             room_alias_matches = room_conf.build_alias_matcher()
