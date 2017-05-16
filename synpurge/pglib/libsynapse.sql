@@ -50,3 +50,87 @@ WHERE tbl.relname = $1
     AND ind.indisvalid
     AND ind.indisready
 
+[application_services]
+SELECT as_id 
+FROM application_services_state
+
+[rooms_by_application_service_id]
+SELECT room_id 
+FROM appservice_room_list
+WHERE appservice_id = $1
+
+[users_by_application_service_id]
+SELECT name 
+FROM users
+WHERE appservice_id = $1
+
+[events_by_application_service_id]
+SELECT event_id 
+FROM events
+WHERE room_id IN (
+    SELECT room_id 
+    FROM appservice_room_list
+    WHERE appservice_id = $1
+)
+
+[delete_tuples_from_table_by_id]
+DELETE FROM $1 WHERE room_id = $2
+
+[delete_tuples_from_table_by_as_id_linked_with_user_id]
+DELETE FROM $1 
+WHERE user_id IN (
+    SELECT name FROM users
+    WHERE appservice_id = $2 
+)
+
+[delete_tuples_from_table_by_as_id_linked_with_event_id]
+DELETE FROM $1 
+WHERE event_id IN (
+    SELECT event_id 
+    FROM events
+    WHERE room_id IN (
+        SELECT room_id 
+        FROM appservice_room_list
+        WHERE appservice_id = $2
+    )
+)
+
+[delete_room_alias_server_by_as_id]
+DELETE FROM room_alias_servers 
+WHERE room_alias IN (
+    SELECT room_alias
+    FROM room_aliases
+    WHERE room_id IN (
+        SELECT room_id 
+        FROM appservice_room_list
+        WHERE appservice_id = $2
+    )
+)
+
+[delete_state_group_edges_by_as_id]
+DELETE FROM state_group_edges 
+WHERE state_group IN (
+    SELECT state_group
+    FROM state_groups
+    WHERE room_id IN (
+        SELECT room_id 
+        FROM appservice_room_list
+        WHERE appservice_id = $2
+    )
+)
+
+[delete_users_by_as_id]
+DELETE FROM users 
+WHERE appservice_id = $1
+
+[delete_application_services_state_by_as_id]
+DELETE FROM application_services_state 
+WHERE as_id = $1
+
+[delete_application_services_txns_by_as_id]
+DELETE FROM application_services_txns 
+WHERE as_id = $1
+
+[delete_appservice_room_list_by_as_id]
+DELETE FROM appservice_room_list 
+WHERE appservice_id = $1

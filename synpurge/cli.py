@@ -15,6 +15,17 @@ cmd = EntryPoint("synpurg", dict(
 ))
 
 
+def get_real_room_id(room):
+    # TODO: Provide an alternate implemenation using the HTTP API.
+    if room.startswith("!"):
+        room_id = room
+    else:
+        room_id = pgdb.get_room_id(room)
+        if room_id is None:
+            raise SystemExit("No room has the alias {}".format(room))
+    return room_id
+
+
 @cmd
 def version():
     """Print the version of program."""
@@ -24,7 +35,7 @@ def version():
 
 @cmd
 def check(path: "configuration file",
-          verbose: "display configuration" = False):
+          verbose: "display configuration"=False):
     """Load and validate a configuration file."""
     from . import config
     try:
@@ -65,22 +76,14 @@ def _configure(config_path,
 @cmd
 def room_info(path: "configuration file",
               room: "room ID or alias",
-              debug: "enable debugging output" = False,
-              json: "output information as JSON" = False):
+              debug: "enable debugging output"=False,
+              json: "output information as JSON"=False):
     """Obtains information about a room."""
     c, pgdb = _configure(path,
                          open_database=True,
                          require_database=True,
                          debug=debug)
-
-    # TODO: Provide an alternate implemenation using the HTTP API.
-    if room.startswith("!"):
-        room_id = room
-    else:
-        room_id = pgdb.get_room_id(room)
-        if room_id is None:
-            raise SystemExit("No room has the alias {}".format(room))
-
+    room_id = get_real_room_id(room)
     room = pgdb.get_room_info(room_id)
     if room is None:
         raise SystemExit("No such room {}".format(room_id))
@@ -102,10 +105,10 @@ def room_info(path: "configuration file",
 
 @cmd
 def cleanup(path: "configuration file",
-            reindex: "re-create indexes" = False,
-            full: "clean the whole database" = False,
-            debug: "enable debugging output" = False,
-            verbose: "enable verbose operation" = False):
+            reindex: "re-create indexes"=False,
+            full: "clean the whole database"=False,
+            debug: "enable debugging output"=False,
+            verbose: "enable verbose operation"=False):
     """Cleans up the database after purging."""
     c, pgdb = _configure(path,
                          open_database=True,
@@ -124,9 +127,9 @@ def cleanup(path: "configuration file",
 
 @cmd
 def reindex(path: "configuration file",
-            concurrent: "enable concurrent reindexing" = False,
-            debug: "enable debugging output" = False,
-            verbose: "enable verbose operation" = False):
+            concurrent: "enable concurrent reindexing"=False,
+            debug: "enable debugging output"=False,
+            verbose: "enable verbose operation"=False):
     """Reindex the database."""
     c, pgdb = _configure(path,
                          open_database=True,
@@ -141,11 +144,11 @@ def reindex(path: "configuration file",
 
 @cmd
 def purge(path: "configuration file",
-          debug: "enable debugging output" = False,
-          verbose: "enable verbose operation" = False,
-          pretend: "only show what would be done" = False,
-          keep_going: "keep going on purge timeouts" = False,
-          concurrent: "enable concurrent reindexing" = False):
+          debug: "enable debugging output"=False,
+          verbose: "enable verbose operation"=False,
+          pretend: "only show what would be done"=False,
+          keep_going: "keep going on purge timeouts"=False,
+          concurrent: "enable concurrent reindexing"=False):
     """Run a batch of room history purges."""
     c, pgdb = _configure(path,
                          open_database=True,
@@ -226,3 +229,51 @@ def purge(path: "configuration file",
                     pgdb.reindex_concurrent()
                 else:
                     pgdb.reindex()
+
+
+@cmd
+def delete_room(path: "configuration file",
+                room: "room ID or alias",
+                debug: "enable debugging output"=False,
+                verbose: "enable verbose operation"=False,
+                pretend: "only show what would be done"=False,
+                keep_going: "keep going on purge timeouts"=False):
+    """Delete room."""
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=True,
+                         debug=debug)
+    room_id = get_real_room_id(room)
+    if c.database:
+        assert pgdb is not None
+        if pretend:
+            print("Delete room {}.".format(room_id))
+        else:
+            pgdb.delete_tuples_from_table_by_id(room_id)
+
+
+@cmd
+def delete_application(path: "configuration file",
+                       application: "application ID",
+                       debug: "enable debugging output"=False,
+                       verbose: "enable verbose operation"=False,
+                       pretend: "only show what would be done"=False,
+                       keep_going: "keep going on purge timeouts"=False):
+    """Delete application."""
+    c, pgdb = _configure(path,
+                         open_database=True,
+                         require_database=True,
+                         debug=debug)
+    if c.database:
+        assert pgdb is not None
+        rooms = pgdb.find_rooms_by_application(application)
+        for room_id in rooms:
+            if pretend:
+                print("Delete room {} linked with application {}.".format(room_id, application))
+            else:
+                pgdb.delete_tuples_from_table_by_id(room_id)
+        # Delete things by application
+        if pretend:
+            print("Delete application {}.".format(application))
+        else:
+            pgdb.delete_application(application)
