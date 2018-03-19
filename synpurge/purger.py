@@ -39,7 +39,7 @@ class DuplicateRoomId(Exception):
         return "\n".join(lines)
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, hash=True)
 class PurgeInfo(object):
     room_id = attr.ib(validator=vv.instance_of(str))
     config = attr.ib(validator=vv.instance_of(config.Room))
