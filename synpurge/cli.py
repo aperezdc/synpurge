@@ -172,9 +172,13 @@ def purge(path: "configuration file",
 
     log.info("Resolving room aliases")
     try:
-        purges = purger.resolve_room_ids(c, pgdb or api)
+        purges, warnings = purger.resolve_room_ids(c, pgdb or api, True)
     except purger.DuplicateRoomId as e:
         raise SystemExit("Two configuration items resolve to the same room: {}".format(e))
+
+    if warnings:
+        for ex in warnings:
+            log.info("During alias resolution: {}".format(e))
 
     import delorean
     import itertools
