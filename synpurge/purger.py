@@ -62,14 +62,18 @@ class PurgeInfo(object):
 @attr.s
 class RoomIdsResolver(object):
     _api = attr.ib()
-    _rooms = attr.ib(default=attr.Factory(dict),
-                     init=False, hash=False)
+    _rooms = attr.ib(default=attr.Factory(dict), init=False)
+    _warnings = attr.ib(default=attr.Factory(list), init=False)
 
     def __add(self, room_id, room_conf, matched_alias=None, replace=False):
         old_info = self._rooms.get(room_id, None)
-        if not (replace or old_info is None):
-            raise DuplicateRoomId(room_id, old_info.config, room_conf,
-                                  old_info.matched_alias, matched_alias)
+        if old_info is not None:
+            ex = DuplicateRoomId(room_id, old_info.config, room_conf,
+                                 old_info.matched_alias, matched_alias)
+            if replace:
+                self._warnings.append(ex)
+            else:
+                raise ex
         if matched_alias:
             log.debug("Resolved %s -> %s (%s)",
                       room_conf.name, room_id, matched_alias)
@@ -78,7 +82,7 @@ class RoomIdsResolver(object):
         self._rooms[room_id] = PurgeInfo(room_id, room_conf,
                                          matched_alias=matched_alias)
 
-    def resolve(self, room_conf: config.Room):
+    def resolve(self, room_conf: config.Room, replace: bool = False):
         params = dict(access_token=room_conf.token)
         if room_conf.pattern:
             log.debug("Expanding room pattern: %s", room_conf.name)
@@ -86,23 +90,24 @@ class RoomIdsResolver(object):
             for room_id, room_aliases in self._api.all_rooms.items():
                 for room_alias in room_aliases:
                     if room_alias_matches(room_alias):
-                        self.__add(room_id, room_conf, room_alias)
+                        self.__add(room_id, room_conf, room_alias, replace)
         elif room_conf.name.startswith("!"):
-            self.__add(room_conf.name, room_conf)
+            self.__add(room_conf.name, room_conf, replace)
         else:
             log.debug("Expanding room alias: %s", room_conf.name)
             self.__add(self._api.get_room_id(room_conf.name,
                                              params=params),
-                       room_conf, room_conf.name)
+                       room_conf, room_conf.name, replace)
 
     def get_purge_info(self):
-        return frozenset(tuple(info for room_id, info in self._rooms.items()))
+        return (frozenset(tuple(info for room_id, info
+                                in self._rooms.items())), self._warnings)
 
 
-def resolve_room_ids(conf, api):
+def resolve_room_ids(conf, api, replace=False):
     resolver = RoomIdsResolver(api)
     for room_conf in conf.rooms:
-        resolver.resolve(room_conf)
+        resolver.resolve(room_conf, replace)
     return resolver.get_purge_info()
 
 
