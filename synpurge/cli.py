@@ -10,7 +10,7 @@ import logging
 from argh import EntryPoint
 
 log = logging.getLogger(__name__)
-cmd = EntryPoint("synpurg", dict(
+cmd = EntryPoint("synpurge", dict(
     description="Purges Synapse's room history",
 ))
 
