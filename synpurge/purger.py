@@ -96,7 +96,7 @@ class RoomIdsResolver(object):
                        room_conf, room_conf.name)
 
     def get_purge_info(self):
-        return frozenset((info for room_id, info in self._rooms.items()))
+        return frozenset(tuple(info for room_id, info in self._rooms.items()))
 
 
 def resolve_room_ids(conf, api):
