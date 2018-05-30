@@ -81,7 +81,8 @@ class Database(object):
         if self._cached_all_rooms is None:
             self._cached_all_rooms = \
                 dict(self._db.synapse.room_aliases)
-            log.debug("Cached aliases for %i rooms")
+            log.debug("Cached aliases for %i rooms",
+                      len(self._cached_all_rooms))
         return self._cached_all_rooms
 
     def cleanup(self):
