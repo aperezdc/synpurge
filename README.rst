@@ -5,6 +5,10 @@ Synpurge
    :target: https://travis-ci.org/aperezdc/synpurge
    :alt: CI Status
 
+.. warning:: **Please do NOT use this tool at the moment**, serious damage
+   to your homeserver is very likely to happen due to `bug #27
+   <https://github.com/aperezdc/synpurge/issues/27>`__.
+
 Utility to remove history of Matrix rooms using the `purge_history API`__
 of Synapse__.
 
