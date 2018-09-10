@@ -67,6 +67,54 @@ class Database(object):
     def find_table_indexes(self, table_name):
         return self._db.synapse.table_indexes(table_name)
 
+    def find_applications(self):
+        return self._db.synapse.application_services()
+
+    def find_rooms_by_application(self, application_id):
+        return self._db.synapse.rooms_by_application_service_id(application_id)
+
+    def delete_tuples_from_table_by_id(self, room_id):
+        tables_to_prune = ['current_state_events', 'event_json', 'event_auth',
+                           'event_backward_extremities', 'event_edges',
+                           'event_forward_extremities', 'event_push_actions',
+                           'event_search', 'event_reports', 'guest_access',
+                           'local_invites', 'topics', 'public_room_list_stream',
+                           'pusher_throttle', 'receipts_graph',
+                           'receipts_linearized', 'room_aliases',
+                           'room_account_data', 'room_depth', 'room_hosts',
+                           'room_memberships', 'room_names', 'room_tags',
+                           'room_tags_revisions', 'rooms',
+                           'stream_ordering_to_exterm', 'history_visibility',
+                           'feedback', 'state_events',
+                           'state_forward_extremities', 'state_groups_state',
+                           'state_groups', 'events']
+        for table in tables_to_prune:
+            self._db.synapse.delete_tuples_from_table_by_id(table,
+                                                            room_id)
+
+    def delete_application(self, application_id):
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_event_id('event_reference_hashes', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_event_id('redactions', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_event_id('rejections', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_event_id('ex_outlier_stream', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_event_id('event_to_state_groups', application_id)
+
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_user_id('device_inbox', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_user_id('device_lists_stream', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_user_id('profiles', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_user_id('refresh_tokens', application_id)
+        self._db.synapse.delete_tuples_from_table_by_as_id_linked_with_user_id('user_threepids', application_id)
+
+        self._db.synapse.delete_room_alias_server_by_as_id(application_id)
+        self._db.synapse.delete_state_group_edges_by_as_id(application_id)
+
+        self._db.synapse.rooms_by_application_service_id(application_id)
+
+        self._db.synapse.delete_users_by_as_id(application_id)
+        self._db.synapse.delete_application_services_state_by_as_id(application_id)
+        self._db.synapse.delete_application_services_txns_by_as_id(application_id)
+        self._db.synapse.delete_appservice_room_list_by_as_id(application_id)
+
     @property
     def public_rooms(self):
         if self._cached_public_rooms is None:
